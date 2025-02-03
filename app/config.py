@@ -9,6 +9,9 @@ class Config:
     SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
+    # CORS
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,http://localhost:9000').split(',')
+
     # MongoDB
     MONGO_URI = os.getenv('MONGODB_URI')
 

@@ -6,12 +6,15 @@ from flask import current_app
 from app.extensions import mongo
 
 class User:
-    def __init__(self, email: str, password: str, name: Optional[str] = None, _id: Optional[ObjectId] = None, created_at: Optional[datetime] = None):
+    def __init__(self, email: str, password: str, name: Optional[str] = None, _id: Optional[ObjectId] = None, 
+                 created_at: Optional[datetime] = None, role: str = 'user', whitelisted: bool = False):
         self.email = email
         self.password = self._hash_password(password) if isinstance(password, str) else password
         self.name = name
         self._id = _id if _id else ObjectId()
         self.created_at = created_at if created_at else datetime.utcnow()
+        self.role = role
+        self.whitelisted = whitelisted
 
     @staticmethod
     def _hash_password(password: str) -> bytes:
@@ -26,7 +29,9 @@ class User:
             'id': str(self._id),
             'email': self.email,
             'name': self.name,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat(),
+            'role': self.role,
+            'whitelisted': self.whitelisted
         }
 
     @classmethod
@@ -44,7 +49,9 @@ class User:
             'email': self.email,
             'password': self.password,
             'name': self.name,
-            'created_at': self.created_at
+            'created_at': self.created_at,
+            'role': self.role,
+            'whitelisted': self.whitelisted
         }
         mongo.db.users.insert_one(user_data)
         return self
@@ -56,3 +63,21 @@ class User:
             {'email': email},
             {'$set': {'password': hashed_password}}
         ) 
+
+    @staticmethod
+    def update_user(user_id: ObjectId, update_data: Dict) -> bool:
+        result = mongo.db.users.update_one(
+            {'_id': user_id},
+            {'$set': update_data}
+        )
+        return result.modified_count > 0
+
+    @classmethod
+    def get_by_id(cls, user_id: str) -> Optional['User']:
+        try:
+            user_data = mongo.db.users.find_one({'_id': ObjectId(user_id)})
+            if not user_data:
+                return None
+            return cls(**user_data)
+        except:
+            return None
