@@ -4,23 +4,34 @@ from app.models.task import Task
 from app.extensions import redis_client
 from datetime import datetime
 from bson import ObjectId
+import jwt
+from flask import current_app
 
 tasks_bp = Blueprint('tasks', __name__)
+
+def verify_token(token):
+    try:
+        return jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        if not token:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({'error': 'No token provided'}), 401
         
-        token = token.split(' ')[1]
-        email = redis_client.client.get(f"token:{token}")
+        token = auth_header.split(' ')[1]
+        payload = verify_token(token)
         
-        if not email:
+        if not payload:
             return jsonify({'error': 'Invalid or expired token'}), 401
         
-        g.user_email = email.decode('utf-8')
+        g.user_email = payload['email']
+        g.user_id = payload['sub']
         return f(*args, **kwargs)
     return decorated_function
 
@@ -49,7 +60,7 @@ def create_task():
     task = Task(
         title=data['title'],
         description=data['description'],
-        user_id=g.user_email,
+        user_id=g.user_id,  # Using user_id from JWT token
         due_date=due_date,
         status=data.get('status', 'pending')
     )
@@ -60,13 +71,13 @@ def create_task():
 @tasks_bp.route('', methods=['GET'])
 @login_required
 def get_tasks():
-    tasks = Task.get_user_tasks(g.user_email)
+    tasks = Task.get_user_tasks(g.user_id)  # Using user_id from JWT token
     return jsonify([task.to_dict() for task in tasks])
 
 @tasks_bp.route('/<task_id>', methods=['GET'])
 @login_required
 def get_task(task_id):
-    task = Task.get_by_id(task_id, g.user_email)
+    task = Task.get_by_id(task_id, g.user_id)  # Using user_id from JWT token
     if not task:
         return jsonify({'error': 'Task not found'}), 404
     
@@ -75,7 +86,7 @@ def get_task(task_id):
 @tasks_bp.route('/<task_id>', methods=['PUT'])
 @login_required
 def update_task(task_id):
-    task = Task.get_by_id(task_id, g.user_email)
+    task = Task.get_by_id(task_id, g.user_id)  # Using user_id from JWT token
     if not task:
         return jsonify({'error': 'Task not found'}), 404
     
@@ -97,9 +108,9 @@ def update_task(task_id):
 @tasks_bp.route('/<task_id>', methods=['DELETE'])
 @login_required
 def delete_task(task_id):
-    task = Task.get_by_id(task_id, g.user_email)
+    task = Task.get_by_id(task_id, g.user_id)  # Using user_id from JWT token
     if not task:
         return jsonify({'error': 'Task not found'}), 404
     
     task.delete()
-    return jsonify({'message': 'Task deleted successfully'}) 
+    return jsonify({'message': 'Task deleted successfully'})
