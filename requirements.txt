@@ -1,0 +1,10 @@
+Flask==2.1.2
+PyJWT==2.8.0
+pymongo==4.5.0
+redis==4.6.0
+requests==2.31.0
+pytest==7.4.0
+bcrypt==4.0.1
+python-dotenv==1.0.0
+Flasgger==0.9.5
+Werkzeug==2.2.3

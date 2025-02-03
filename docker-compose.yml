@@ -1,0 +1,28 @@
+
+version: '3.8'
+services:
+  api:
+    build: .
+    container_name: task_api
+    env_file:
+      - .env.example
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - redis
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  mongo_data:
